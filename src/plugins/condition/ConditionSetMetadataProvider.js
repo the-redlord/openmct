@@ -21,12 +21,21 @@ export default class ConditionSetMetadataProvider {
     }
 
     getMetadata(domainObject) {
+        const enumerations = domainObject.configuration.conditionCollection
+            .map((condition, index) => {
+                return {
+                    string: condition.configuration.output,
+                    value: index
+                };
+            });
+
         return {
             values: this.getDomains().concat([
                 {
                     name: 'Output',
                     key: 'output',
-                    format: 'string',
+                    format: 'enum',
+                    enumerations: enumerations,
                     hints: {
                         range: 1
                     }
