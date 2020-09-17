@@ -4,14 +4,14 @@ import Vue from 'vue';
 export default function ImageryViewProvider(openmct) {
     const type = 'example.imagery';
 
-    const hasImageTelemetry = function (domainObject) {
+    function hasImageTelemetry(domainObject) {
         const metadata = openmct.telemetry.getMetadata(domainObject);
         if (!metadata) {
             return false;
         }
 
         return metadata.valuesForHints(['image']).length > 0;
-    };
+    }
 
     return {
         key: type,
@@ -26,6 +26,7 @@ export default function ImageryViewProvider(openmct) {
             return {
                 show: function (element) {
                     component = new Vue({
+                        el: element,
                         components: {
                             ImageryViewLayout
                         },
@@ -33,7 +34,6 @@ export default function ImageryViewProvider(openmct) {
                             openmct,
                             domainObject
                         },
-                        el: element,
                         template: '<imagery-view-layout ref="ImageryLayout"></imagery-view-layout>'
                     });
                 },
@@ -43,5 +43,5 @@ export default function ImageryViewProvider(openmct) {
                 }
             };
         }
-    }
+    };
 }

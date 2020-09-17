@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -38,14 +38,15 @@ define([
             canEdit: function (domainObject) {
                 return domainObject.type === 'flexible-layout';
             },
-            view: function (domainObject) {
+            view: function (domainObject, objectPath) {
                 let component;
 
                 return {
                     show: function (element, isEditing) {
-                        component =  new Vue({
+                        component = new Vue({
                             provide: {
                                 openmct,
+                                objectPath,
                                 layoutObject: domainObject
                             },
                             el: element,
@@ -55,7 +56,7 @@ define([
                             data() {
                                 return {
                                     isEditing: isEditing
-                                }
+                                };
                             },
                             template: '<flexible-layout-component ref="flexibleLayout" :isEditing="isEditing"></flexible-layout-component>'
                         });
@@ -83,5 +84,6 @@ define([
             }
         };
     }
+
     return FlexibleLayoutViewProvider;
 });

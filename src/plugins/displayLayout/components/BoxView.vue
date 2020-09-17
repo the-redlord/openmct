@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -24,24 +24,27 @@
 <layout-frame
     :item="item"
     :grid-size="gridSize"
+    :is-editing="isEditing"
     @move="(gridDelta) => $emit('move', gridDelta)"
     @endMove="() => $emit('endMove')"
 >
     <div
         class="c-box-view"
+        :class="[styleClass]"
         :style="style"
     ></div>
 </layout-frame>
 </template>
 
 <script>
-import LayoutFrame from './LayoutFrame.vue'
+import LayoutFrame from './LayoutFrame.vue';
+import conditionalStylesMixin from '../mixins/objectStyles-mixin';
 
 export default {
     makeDefinition() {
         return {
             fill: '#717171',
-            stroke: 'transparent',
+            stroke: '',
             x: 1,
             y: 1,
             width: 10,
@@ -52,6 +55,7 @@ export default {
     components: {
         LayoutFrame
     },
+    mixins: [conditionalStylesMixin],
     props: {
         item: {
             type: Object,
@@ -67,14 +71,22 @@ export default {
             type: Number,
             required: true
         },
-        initSelect: Boolean
+        initSelect: Boolean,
+        isEditing: {
+            type: Boolean,
+            required: true
+        }
     },
     computed: {
         style() {
-            return {
-                backgroundColor: this.item.fill,
-                border: '1px solid ' + this.item.stroke
-            };
+            if (this.itemStyle) {
+                return this.itemStyle;
+            } else {
+                return {
+                    backgroundColor: this.item.fill,
+                    border: this.item.stroke ? '1px solid ' + this.item.stroke : ''
+                };
+            }
         }
     },
     watch: {
@@ -84,6 +96,13 @@ export default {
             }
 
             this.context.index = newIndex;
+        },
+        item(newItem) {
+            if (!this.context) {
+                return;
+            }
+
+            this.context.layoutItem = newItem;
         }
     },
     mounted() {
@@ -99,5 +118,5 @@ export default {
             this.removeSelectable();
         }
     }
-}
+};
 </script>

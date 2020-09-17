@@ -23,7 +23,7 @@
     </div>
     <ul
         v-if="expanded"
-        class="c-properties"
+        class="c-inspect-properties"
     >
         <filter-field
             v-for="metadatum in globalMetadata"
@@ -61,7 +61,7 @@ export default {
         return {
             expanded: false,
             updatedFilters: JSON.parse(JSON.stringify(this.globalFilters))
-        }
+        };
     },
     computed: {
         hasActiveGlobalFilters() {
@@ -113,5 +113,5 @@ export default {
             this.$emit('persistGlobalFilters', key, this.updatedFilters);
         }
     }
-}
+};
 </script>

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2019, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -37,7 +37,7 @@ export default class RemoveAction {
             if (this.inNavigationPath(object)) {
                 this.navigateTo(objectPath.slice(1));
             }
-        }).catch(() =>{});
+        }).catch(() => {});
     }
 
     showConfirmDialog(object) {
@@ -62,8 +62,8 @@ export default class RemoveAction {
                         }
                     }
                 ]
-            })
-        })
+            });
+        });
     }
 
     inNavigationPath(object) {
@@ -101,9 +101,15 @@ export default class RemoveAction {
     appliesTo(objectPath) {
         let parent = objectPath[1];
         let parentType = parent && this.openmct.types.get(parent.type);
+        let child = objectPath[0];
+        let locked = child.locked ? child.locked : parent && parent.locked;
 
-        return parentType &&
-            parentType.definition.creatable &&
-            Array.isArray(parent.composition);
+        if (locked) {
+            return false;
+        }
+
+        return parentType
+            && parentType.definition.creatable
+            && Array.isArray(parent.composition);
     }
 }

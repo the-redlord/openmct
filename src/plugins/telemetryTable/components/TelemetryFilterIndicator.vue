@@ -17,6 +17,8 @@
 </template>
 
 <script>
+import _ from 'lodash';
+
 const FILTER_INDICATOR_LABEL = 'Filters:';
 const FILTER_INDICATOR_LABEL_MIXED = 'Mixed Filters:';
 const FILTER_INDICATOR_TITLE = 'Data filters are being applied to this view.';
@@ -29,11 +31,12 @@ export default {
         return {
             filterNames: [],
             filteredTelemetry: {}
-        }
+        };
     },
     computed: {
         hasMixedFilters() {
             let filtersToCompare = _.omit(this.filteredTelemetry[Object.keys(this.filteredTelemetry)[0]], [USE_GLOBAL]);
+
             return Object.values(this.filteredTelemetry).some(filters => {
                 return !_.isEqual(filtersToCompare, _.omit(filters, [USE_GLOBAL]));
             });
@@ -65,21 +68,22 @@ export default {
         setFilterNames() {
             let names = [];
             let composition = this.openmct.composition.get(this.table.configuration.domainObject);
+            if (composition !== undefined) {
+                composition.load().then((domainObjects) => {
+                    domainObjects.forEach(telemetryObject => {
+                        let keyString = this.openmct.objects.makeKeyString(telemetryObject.identifier);
+                        let metadataValues = this.openmct.telemetry.getMetadata(telemetryObject).values();
+                        let filters = this.filteredTelemetry[keyString];
 
-            composition && composition.load().then((domainObjects) => {
-                domainObjects.forEach(telemetryObject => {
-                    let keyString= this.openmct.objects.makeKeyString(telemetryObject.identifier);
-                    let metadataValues = this.openmct.telemetry.getMetadata(telemetryObject).values();
-                    let filters = this.filteredTelemetry[keyString];
+                        if (filters !== undefined) {
+                            names.push(this.getFilterNamesFromMetadata(filters, metadataValues));
+                        }
+                    });
 
-                    if (filters !== undefined) {
-                        names.push(this.getFilterNamesFromMetadata(filters, metadataValues));
-                    }
+                    names = _.flatten(names);
+                    this.filterNames = names.length === 0 ? names : Array.from(new Set(names));
                 });
-
-                names = _.flatten(names);
-                this.filterNames = names.length === 0 ? names : Array.from(new Set(names));
-            });
+            }
         },
         getFilterNamesFromMetadata(filters, metadataValues) {
             let filterNames = [];
@@ -101,7 +105,7 @@ export default {
 
             return _.flatten(filterNames);
         },
-        getFilterLabels(filterObject, metadatum,) {
+        getFilterLabels(filterObject, metadatum) {
             let filterLabels = [];
             Object.values(filterObject).forEach(comparator => {
                 comparator.forEach(filterValue => {
@@ -125,5 +129,5 @@ export default {
             this.setFilterNames();
         }
     }
-}
+};
 </script>

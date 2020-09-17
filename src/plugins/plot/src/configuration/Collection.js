@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -19,16 +19,13 @@
  * this source code distribution or the Licensing information page available
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
-/*global define*/
 
 define([
-    'lodash',
     'EventEmitter',
     './Model',
     '../lib/extend',
     '../lib/eventHelpers'
 ], function (
-    _,
     EventEmitter,
     Model,
     extend,
@@ -41,10 +38,11 @@ define([
         } else {
             this.models = [];
         }
+
         this.initialize(options);
     }
 
-    _.extend(Collection.prototype, EventEmitter.prototype);
+    Object.assign(Collection.prototype, EventEmitter.prototype);
     eventHelpers.extend(Collection.prototype);
 
     Collection.extend = extend;
@@ -58,9 +56,11 @@ define([
     Collection.prototype.modelFn = function (model) {
         if (model instanceof this.modelClass) {
             model.collection = this;
+
             return model;
 
         }
+
         return new this.modelClass({
             collection: this,
             model: model
@@ -93,7 +93,7 @@ define([
 
     Collection.prototype.add = function (model) {
         model = this.modelFn(model);
-        var index = this.models.length;
+        const index = this.models.length;
         this.models.push(model);
         this.emit('add', model, index);
     };
@@ -105,16 +105,11 @@ define([
     };
 
     Collection.prototype.indexOf = function (model) {
-        return _.findIndex(
-            this.models,
-            function (m) {
-                return m === model;
-            }
-        );
+        return this.models.findIndex(m => m === model);
     };
 
     Collection.prototype.remove = function (model) {
-        var index = this.indexOf(model);
+        const index = this.indexOf(model);
 
         if (index === -1) {
             throw new Error('model not found in collection.');

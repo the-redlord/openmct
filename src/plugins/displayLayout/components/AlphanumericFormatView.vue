@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -23,20 +23,20 @@
 <template>
 <div
     v-if="isEditing"
-    class="c-properties"
+    class="c-inspect-properties"
 >
-    <div class="c-properties__header">
+    <div class="c-inspect-properties__header">
         Alphanumeric Format
     </div>
-    <ul class="c-properties__section">
-        <li class="c-properties__row">
+    <ul class="c-inspect-properties__section">
+        <li class="c-inspect-properties__row">
             <div
-                class="c-properties__label"
+                class="c-inspect-properties__label"
                 title="Printf formatting for the selected telemetry"
             >
                 <label for="telemetryPrintfFormat">Format</label>
             </div>
-            <div class="c-properties__value">
+            <div class="c-inspect-properties__value">
                 <input
                     id="telemetryPrintfFormat"
                     type="text"
@@ -58,7 +58,7 @@ export default {
             isEditing: this.openmct.editor.isEditing(),
             telemetryFormat: undefined,
             nonMixedFormat: false
-        }
+        };
     },
     mounted() {
         this.openmct.editor.on('isEditing', this.toggleEdit);
@@ -99,6 +99,6 @@ export default {
             this.telemetryFormat = this.nonMixedFormat ? format : '';
         }
     }
-}
+};
 
 </script>

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -24,15 +24,23 @@
 <layout-frame
     :item="item"
     :grid-size="gridSize"
+    :is-editing="isEditing"
     @move="(gridDelta) => $emit('move', gridDelta)"
     @endMove="() => $emit('endMove')"
 >
     <div
         v-if="domainObject"
         class="c-telemetry-view"
+        :class="{
+            styleClass,
+            'is-missing': domainObject.status === 'missing'
+        }"
         :style="styleObject"
         @contextmenu.prevent="showContextMenu"
     >
+        <div class="is-missing__indicator"
+             title="This item is missing"
+        ></div>
         <div
             v-if="showLabel"
             class="c-telemetry-view__label"
@@ -50,6 +58,12 @@
         >
             <div class="c-telemetry-view__value-text">
                 {{ telemetryValue }}
+                <span
+                    v-if="unit && item.showUnits"
+                    class="c-telemetry-view__value-text__unit"
+                >
+                    {{ unit }}
+                </span>
             </div>
         </div>
     </div>
@@ -57,12 +71,13 @@
 </template>
 
 <script>
-import LayoutFrame from './LayoutFrame.vue'
-import printj from 'printj'
+import LayoutFrame from './LayoutFrame.vue';
+import printj from 'printj';
+import conditionalStylesMixin from "../mixins/objectStyles-mixin";
 
-const DEFAULT_TELEMETRY_DIMENSIONS = [10, 5],
-    DEFAULT_POSITION = [1, 1],
-    CONTEXT_MENU_ACTIONS = ['viewHistoricalData'];
+const DEFAULT_TELEMETRY_DIMENSIONS = [10, 5];
+const DEFAULT_POSITION = [1, 1];
+const CONTEXT_MENU_ACTIONS = ['viewHistoricalData'];
 
 export default {
     makeDefinition(openmct, gridSize, domainObject, position) {
@@ -77,8 +92,8 @@ export default {
             height: DEFAULT_TELEMETRY_DIMENSIONS[1],
             displayMode: 'all',
             value: metadata.getDefaultDisplayValue(),
-            stroke: "transparent",
-            fill: "transparent",
+            stroke: "",
+            fill: "",
             color: "",
             size: "13px"
         };
@@ -87,6 +102,7 @@ export default {
     components: {
         LayoutFrame
     },
+    mixins: [conditionalStylesMixin],
     props: {
         item: {
             type: Object,
@@ -102,6 +118,10 @@ export default {
         index: {
             type: Number,
             required: true
+        },
+        isEditing: {
+            type: Boolean,
+            required: true
         }
     },
     data() {
@@ -110,24 +130,30 @@ export default {
             formats: undefined,
             domainObject: undefined,
             currentObjectPath: undefined
-        }
+        };
     },
     computed: {
         showLabel() {
             let displayMode = this.item.displayMode;
+
             return displayMode === 'all' || displayMode === 'label';
         },
         showValue() {
             let displayMode = this.item.displayMode;
+
             return displayMode === 'all' || displayMode === 'value';
         },
+        unit() {
+            let value = this.item.value;
+            let unit = this.metadata.value(value).unit;
+
+            return unit;
+        },
         styleObject() {
-            return {
-                backgroundColor: this.item.fill,
-                borderColor: this.item.stroke,
-                color: this.item.color,
+            return Object.assign({}, {
                 fontSize: this.item.size
-            }
+            }, this.itemStyle);
+
         },
         fieldName() {
             return this.valueMetadata && this.valueMetadata.name;
@@ -155,6 +181,7 @@ export default {
             }
 
             let alarm = this.limitEvaluator && this.limitEvaluator.evaluate(this.datum, this.valueMetadata);
+
             return alarm && alarm.cssClass;
         }
     },
@@ -167,6 +194,10 @@ export default {
             this.context.index = newIndex;
         },
         item(newItem) {
+            if (!this.context) {
+                return;
+            }
+
             this.context.layoutItem = newItem;
         }
     },
@@ -238,10 +269,13 @@ export default {
                 item: domainObject,
                 layoutItem: this.item,
                 index: this.index,
-                updateTelemetryFormat: this.updateTelemetryFormat
+                updateTelemetryFormat: this.updateTelemetryFormat,
+                toggleUnits: this.toggleUnits,
+                showUnits: this.showUnits
             };
             this.removeSelectable = this.openmct.selection.selectable(
-                this.$el, this.context, this.initSelect);
+                this.$el, this.context, this.immediatelySelect || this.initSelect);
+            delete this.immediatelySelect;
         },
         updateTelemetryFormat(format) {
             this.$emit('formatChanged', this.item, format);
@@ -250,6 +284,6 @@ export default {
             this.openmct.contextMenu._showContextMenuForObjectPath(this.currentObjectPath, event.x, event.y, CONTEXT_MENU_ACTIONS);
         }
     }
-}
+};
 
 </script>

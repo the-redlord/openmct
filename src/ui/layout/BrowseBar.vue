@@ -3,13 +3,24 @@
     <div class="l-browse-bar__start">
         <button
             v-if="hasParent"
-            class="l-browse-bar__nav-to-parent-button c-icon-button c-icon-button--major icon-pointer-left"
+            class="l-browse-bar__nav-to-parent-button c-icon-button c-icon-button--major icon-arrow-nav-to-parent"
+            title="Navigate up to parent"
             @click="goToParent"
         ></button>
         <div
             class="l-browse-bar__object-name--w c-object-label"
-            :class="[ type.cssClass, classList ]"
+            :class="{
+                classList,
+                'is-missing': domainObject.status === 'missing'
+            }"
         >
+            <div class="c-object-label__type-icon"
+                 :class="type.cssClass"
+            >
+                <span class="is-missing__indicator"
+                      title="This item is missing"
+                ></span>
+            </div>
             <span
                 class="l-browse-bar__object-name c-object-label__name c-input-inline"
                 contenteditable
@@ -28,6 +39,7 @@
 
     <div class="l-browse-bar__end">
         <view-switcher
+            v-if="!isEditing"
             :current-view="currentView"
             :views="views"
             @setView="setView"
@@ -35,11 +47,22 @@
         <!-- Action buttons -->
         <NotebookMenuSwitcher v-if="notebookEnabled"
                               :domain-object="domainObject"
+                              :object-path="openmct.router.path"
                               class="c-notebook-snapshot-menubutton"
         />
         <div class="l-browse-bar__actions">
             <button
-                v-if="isViewEditable & !isEditing"
+                v-if="isViewEditable && !isEditing"
+                :title="lockedOrUnlocked"
+                class="c-button"
+                :class="{
+                    'icon-lock c-button--caution': domainObject.locked,
+                    'icon-unlocked': !domainObject.locked
+                }"
+                @click="toggleLock(!domainObject.locked)"
+            ></button>
+            <button
+                v-if="isViewEditable && !isEditing && !domainObject.locked"
                 class="l-browse-bar__actions__edit c-button c-button--major icon-pencil"
                 title="Edit"
                 @click="edit()"
@@ -109,7 +132,7 @@ export default {
             viewKey: undefined,
             isEditing: this.openmct.editor.isEditing(),
             notebookEnabled: this.openmct.types.get('notebook')
-        }
+        };
     },
     computed: {
         classList() {
@@ -137,28 +160,39 @@ export default {
                 });
         },
         hasParent() {
-            return this.domainObject !== PLACEHOLDER_OBJECT &&
-                    this.parentUrl !== '#/browse'
+            return this.domainObject !== PLACEHOLDER_OBJECT
+                    && this.parentUrl !== '#/browse';
         },
         parentUrl() {
             let objectKeyString = this.openmct.objects.makeKeyString(this.domainObject.identifier);
             let hash = window.location.hash;
+
             return hash.slice(0, hash.lastIndexOf('/' + objectKeyString));
         },
         type() {
             let objectType = this.openmct.types.get(this.domainObject.type);
             if (!objectType) {
-                return {}
+                return {};
             }
+
             return objectType.definition;
         },
         isViewEditable() {
             let currentViewKey = this.currentView.key;
             if (currentViewKey !== undefined) {
                 let currentViewProvider = this.openmct.objectViews.getByProviderKey(currentViewKey);
+
                 return currentViewProvider.canEdit && currentViewProvider.canEdit(this.domainObject);
             }
+
             return false;
+        },
+        lockedOrUnlocked() {
+            if (this.domainObject.locked) {
+                return 'Locked for editing - click to unlock.';
+            } else {
+                return 'Unlocked for editing - click to lock.';
+            }
         }
     },
     watch: {
@@ -166,6 +200,7 @@ export default {
             if (this.mutationObserver) {
                 this.mutationObserver();
             }
+
             this.mutationObserver = this.openmct.objects.observe(this.domainObject, '*', (domainObject) => {
                 this.domainObject = domainObject;
             });
@@ -183,6 +218,7 @@ export default {
         if (this.mutationObserver) {
             this.mutationObserver();
         }
+
         document.removeEventListener('click', this.closeViewAndSaveMenu);
         window.removeEventListener('click', this.promptUserbeforeNavigatingAway);
     },
@@ -197,8 +233,6 @@ export default {
         updateName(event) {
             if (event.target.innerText !== this.domainObject.name && event.target.innerText.match(/\S/)) {
                 this.openmct.objects.mutate(this.domainObject, 'name', event.target.innerText);
-            } else {
-                event.target.innerText = this.domainObject.name;
             }
         },
         updateNameOnEnterKeyPress(event) {
@@ -239,7 +273,7 @@ export default {
             });
         },
         promptUserbeforeNavigatingAway(event) {
-            if(this.openmct.editor.isEditing()) {
+            if (this.openmct.editor.isEditing()) {
                 event.preventDefault();
                 event.returnValue = '';
             }
@@ -252,7 +286,7 @@ export default {
                 title: 'Saving'
             });
 
-            return this.openmct.editor.save().then(()=> {
+            return this.openmct.editor.save().then(() => {
                 dialog.dismiss();
                 this.openmct.notifications.info('Save successful');
             }).catch((error) => {
@@ -271,7 +305,10 @@ export default {
         },
         goToParent() {
             window.location.hash = this.parentUrl;
+        },
+        toggleLock(flag) {
+            this.openmct.objects.mutate(this.domainObject, 'locked', flag);
         }
     }
-}
+};
 </script>

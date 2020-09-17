@@ -1,6 +1,6 @@
 
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -22,11 +22,21 @@
  *****************************************************************************/
 
 <template>
-<tr @contextmenu.prevent="showContextMenu">
-    <td>{{ name }}</td>
-    <td>{{ timestamp }}</td>
-    <td :class="valueClass">
-        {{ value }}
+<tr
+    class="js-lad-table__body__row"
+    @contextmenu.prevent="showContextMenu"
+>
+    <td class="js-first-data">{{ name }}</td>
+    <td class="js-second-data">{{ formattedTimestamp }}</td>
+    <td
+        class="js-third-data"
+        :class="valueClass"
+    >{{ value }}</td>
+    <td
+        v-if="hasUnits"
+        class="js-units"
+    >
+        {{ unit }}
     </td>
 </tr>
 </template>
@@ -44,6 +54,10 @@ export default {
         domainObject: {
             type: Object,
             required: true
+        },
+        hasUnits: {
+            type: Boolean,
+            requred: true
         }
     },
     data() {
@@ -52,16 +66,23 @@ export default {
 
         return {
             name: this.domainObject.name,
-            timestamp: '---',
+            timestamp: undefined,
             value: '---',
             valueClass: '',
-            currentObjectPath
+            currentObjectPath,
+            unit: ''
+        };
+    },
+    computed: {
+        formattedTimestamp() {
+            return this.timestamp !== undefined ? this.getFormattedTimestamp(this.timestamp) : '---';
         }
     },
     mounted() {
         this.metadata = this.openmct.telemetry.getMetadata(this.domainObject);
         this.formats = this.openmct.telemetry.getFormatMap(this.metadata);
         this.keyString = this.openmct.objects.makeKeyString(this.domainObject.identifier);
+        this.bounds = this.openmct.time.bounds();
 
         this.limitEvaluator = this.openmct
             .telemetry
@@ -76,6 +97,7 @@ export default {
             );
 
         this.openmct.time.on('timeSystem', this.updateTimeSystem);
+        this.openmct.time.on('bounds', this.updateBounds);
 
         this.timestampKey = this.openmct.time.timeSystem().key;
 
@@ -83,54 +105,107 @@ export default {
             .metadata
             .valuesForHints(['range'])[0];
 
-        this.valueKey = this.valueMetadata.key
+        this.valueKey = this.valueMetadata.key;
 
         this.unsubscribe = this.openmct
             .telemetry
             .subscribe(this.domainObject, this.updateValues);
 
-        this.openmct
-            .telemetry
-            .request(this.domainObject, {strategy: 'latest'})
-            .then((array) => this.updateValues(array[array.length - 1]));
+        this.requestHistory();
+
+        if (this.hasUnits) {
+            this.setUnit();
+        }
     },
     destroyed() {
         this.stopWatchingMutation();
         this.unsubscribe();
-        this.openmct.off('timeSystem', this.updateTimeSystem);
+        this.openmct.time.off('timeSystem', this.updateTimeSystem);
+        this.openmct.time.off('bounds', this.updateBounds);
     },
     methods: {
         updateValues(datum) {
-            this.timestamp = this.formats[this.timestampKey].format(datum);
-            this.value = this.formats[this.valueKey].format(datum);
+            let newTimestamp = this.getParsedTimestamp(datum);
+            let limit;
 
-            var limit = this.limitEvaluator.evaluate(datum, this.valueMetadata);
-
-            if (limit) {
-                this.valueClass = limit.cssClass;
-            } else {
-                this.valueClass = '';
+            if (this.shouldUpdate(newTimestamp)) {
+                this.timestamp = newTimestamp;
+                this.value = this.formats[this.valueKey].format(datum);
+                limit = this.limitEvaluator.evaluate(datum, this.valueMetadata);
+                if (limit) {
+                    this.valueClass = limit.cssClass;
+                } else {
+                    this.valueClass = '';
+                }
             }
+        },
+        shouldUpdate(newTimestamp) {
+            let newTimestampInBounds = this.inBounds(newTimestamp);
+            let noExistingTimestamp = this.timestamp === undefined;
+            let newTimestampIsLatest = newTimestamp > this.timestamp;
+
+            return newTimestampInBounds
+                && (noExistingTimestamp || newTimestampIsLatest);
+        },
+        requestHistory() {
+            this.openmct
+                .telemetry
+                .request(this.domainObject, {
+                    start: this.bounds.start,
+                    end: this.bounds.end,
+                    size: 1,
+                    strategy: 'latest'
+                })
+                .then((array) => this.updateValues(array[array.length - 1]));
         },
         updateName(name) {
             this.name = name;
         },
+        updateBounds(bounds, isTick) {
+            this.bounds = bounds;
+            if (!isTick) {
+                this.resetValues();
+                this.requestHistory();
+            }
+        },
+        inBounds(timestamp) {
+            return timestamp >= this.bounds.start && timestamp <= this.bounds.end;
+        },
         updateTimeSystem(timeSystem) {
-            this.value = '---';
-            this.timestamp = '---';
-            this.valueClass = '';
+            this.resetValues();
             this.timestampKey = timeSystem.key;
-
-            this.openmct
-                .telemetry
-                .request(this.domainObject, {strategy: 'latest'})
-                .then((array) => this.updateValues(array[array.length - 1]));
-
         },
         showContextMenu(event) {
             this.openmct.contextMenu._showContextMenuForObjectPath(this.currentObjectPath, event.x, event.y, CONTEXT_MENU_ACTIONS);
+        },
+        resetValues() {
+            this.value = '---';
+            this.timestamp = undefined;
+            this.valueClass = '';
+        },
+        getParsedTimestamp(timestamp) {
+            if (this.timeSystemFormat()) {
+                return this.formats[this.timestampKey].parse(timestamp);
+            }
+        },
+        getFormattedTimestamp(timestamp) {
+            if (this.timeSystemFormat()) {
+                return this.formats[this.timestampKey].format(timestamp);
+            }
+        },
+        timeSystemFormat() {
+            if (this.formats[this.timestampKey]) {
+                return true;
+            } else {
+                console.warn(`No formatter for ${this.timestampKey} time system for ${this.domainObject.name}.`);
+
+                return false;
+            }
+        },
+        setUnit() {
+            this.unit = this.valueMetadata.unit || '';
         }
     }
-}
+};
 </script>
 

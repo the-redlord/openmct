@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -28,7 +28,7 @@ define([
     './api/api',
     './api/overlays/OverlayAPI',
     './selection/Selection',
-    './api/objects/object-utils',
+    'objectUtils',
     './plugins/plugins',
     './adapter/indicators/legacy-indicators-plugin',
     './plugins/buildInfo/plugin',
@@ -102,19 +102,21 @@ define([
         };
         /* eslint-enable no-undef */
 
+        this.legacyBundle = {
+            extensions: {
+                services: [
+                    {
+                        key: "openmct",
+                        implementation: function ($injector) {
+                            this.$injector = $injector;
 
-        this.legacyBundle = { extensions: {
-            services: [
-                {
-                    key: "openmct",
-                    implementation: function ($injector) {
-                        this.$injector = $injector;
-                        return this;
-                    }.bind(this),
-                    depends: ['$injector']
-                }
-            ]
-        } };
+                            return this;
+                        }.bind(this),
+                        depends: ['$injector']
+                    }
+                ]
+            }
+        };
 
         /**
          * Tracks current selection state of the application.
@@ -249,7 +251,7 @@ define([
         this.legacyRegistry = new BundleRegistry();
         installDefaultBundles(this.legacyRegistry);
 
-        // Plugin's that are installed by default
+        // Plugins that are installed by default
 
         this.install(this.plugins.Plot());
         this.install(this.plugins.TelemetryTable());
@@ -264,6 +266,11 @@ define([
         this.install(this.plugins.GoToOriginalAction());
         this.install(this.plugins.ImportExport());
         this.install(this.plugins.WebPage());
+        this.install(this.plugins.Condition());
+        this.install(this.plugins.ConditionWidget());
+        this.install(this.plugins.URLTimeSettingsSynchronizer());
+        this.install(this.plugins.NotificationIndicator());
+        this.install(this.plugins.NewFolderAction());
     }
 
     MCT.prototype = Object.create(EventEmitter.prototype);
@@ -285,8 +292,9 @@ define([
         let capabilityService = this.$injector.get('capabilityService');
 
         function instantiate(model, keyString) {
-            var capabilities = capabilityService.getCapabilities(model, keyString);
+            const capabilities = capabilityService.getCapabilities(model, keyString);
             model.id = keyString;
+
             return new DomainObjectImpl(keyString, model, capabilities);
         }
 
@@ -298,6 +306,7 @@ define([
                 .map((o) => {
                     let keyString = objectUtils.makeKeyString(o.identifier);
                     let oldModel = objectUtils.toOldFormat(o);
+
                     return instantiate(oldModel, keyString);
                 })
                 .reverse()
@@ -308,6 +317,7 @@ define([
         } else {
             let keyString = objectUtils.makeKeyString(domainObject.identifier);
             let oldModel = objectUtils.toOldFormat(domainObject);
+
             return instantiate(oldModel, keyString);
         }
     };
@@ -348,15 +358,11 @@ define([
      * @param {HTMLElement} [domElement] the DOM element in which to run
      *        MCT; if undefined, MCT will be run in the body of the document
      */
-    MCT.prototype.start = function (domElement) {
+    MCT.prototype.start = function (domElement = document.body, isHeadlessMode = false) {
         if (!this.plugins.DisplayLayout._installed) {
             this.install(this.plugins.DisplayLayout({
                 showAsView: ['summary-widget']
             }));
-        }
-
-        if (!domElement) {
-            domElement = document.body;
         }
 
         this.element = domElement;
@@ -371,8 +377,8 @@ define([
 
         // TODO: remove with legacy types.
         this.types.listKeys().forEach(function (typeKey) {
-            var type = this.types.get(typeKey);
-            var legacyDefinition = type.toLegacyDefinition();
+            const type = this.types.get(typeKey);
+            const legacyDefinition = type.toLegacyDefinition();
             legacyDefinition.key = typeKey;
             this.legacyExtension('types', legacyDefinition);
         }.bind(this));
@@ -390,7 +396,7 @@ define([
          * @event start
          * @memberof module:openmct.MCT~
          */
-        const startPromise = new Main()
+        const startPromise = new Main();
         startPromise.run(this)
             .then(function (angular) {
                 this.$angular = angular;
@@ -398,22 +404,31 @@ define([
                 // something has depended upon objectService.  Cool, right?
                 this.$injector.get('objectService');
 
-                var appLayout = new Vue({
-                    components: {
-                        'Layout': Layout.default
-                    },
-                    provide: {
-                        openmct: this
-                    },
-                    template: '<Layout ref="layout"></Layout>'
-                });
-                domElement.appendChild(appLayout.$mount().$el);
+                if (!isHeadlessMode) {
+                    const appLayout = new Vue({
+                        components: {
+                            'Layout': Layout.default
+                        },
+                        provide: {
+                            openmct: this
+                        },
+                        template: '<Layout ref="layout"></Layout>'
+                    });
+                    domElement.appendChild(appLayout.$mount().$el);
 
-                this.layout = appLayout.$refs.layout;
-                Browse(this);
+                    this.layout = appLayout.$refs.layout;
+                    Browse(this);
+                }
+
                 this.router.start();
                 this.emit('start');
             }.bind(this));
+    };
+
+    MCT.prototype.startHeadless = function () {
+        let unreachableNode = document.createElement('div');
+
+        return this.start(unreachableNode, true);
     };
 
     /**
@@ -425,6 +440,11 @@ define([
      */
     MCT.prototype.install = function (plugin) {
         plugin(this);
+    };
+
+    MCT.prototype.destroy = function () {
+        this.emit('destroy');
+        this.router.destroy();
     };
 
     MCT.prototype.plugins = plugins;

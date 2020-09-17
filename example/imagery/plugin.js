@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2017, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -52,6 +52,7 @@ define([
             return {
                 name: name,
                 utc: Math.floor(timestamp / 5000) * 5000,
+                local: Math.floor(timestamp / 5000) * 5000,
                 url: IMAGE_SAMPLES[Math.floor(timestamp / 5000) % IMAGE_SAMPLES.length]
             };
         }
@@ -78,34 +79,34 @@ define([
             },
             request: function (domainObject, options) {
                 var start = options.start;
-                var end = options.end;
+                var end = Math.min(options.end, Date.now());
                 var data = [];
                 while (start <= end && data.length < 5000) {
                     data.push(pointForTimestamp(start, domainObject.name));
                     start += 5000;
                 }
+
                 return Promise.resolve(data);
             }
         };
 
         var ladProvider = {
             supportsRequest: function (domainObject, options) {
-                return domainObject.type === 'example.imagery' &&
-                    options.strategy === 'latest';
+                return domainObject.type === 'example.imagery'
+                    && options.strategy === 'latest';
             },
             request: function (domainObject, options) {
                 return Promise.resolve([pointForTimestamp(Date.now(), domainObject.name)]);
             }
         };
 
-
         return function install(openmct) {
             openmct.types.addType('example.imagery', {
                 key: 'example.imagery',
                 name: 'Example Imagery',
                 cssClass: 'icon-image',
-                description: 'For development use. Creates example imagery ' +
-                    'data that mimics a live imagery stream.',
+                description: 'For development use. Creates example imagery '
+                    + 'data that mimics a live imagery stream.',
                 creatable: true,
                 initialize: function (object) {
                     object.telemetry = {
@@ -119,6 +120,14 @@ define([
                                 key: 'utc',
                                 format: 'utc',
                                 hints: {
+                                    domain: 2
+                                }
+                            },
+                            {
+                                name: 'Local Time',
+                                key: 'local',
+                                format: 'local-format',
+                                hints: {
                                     domain: 1
                                 }
                             },
@@ -131,7 +140,7 @@ define([
                                 }
                             }
                         ]
-                    }
+                    };
                 }
             });
 

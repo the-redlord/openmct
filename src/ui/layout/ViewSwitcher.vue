@@ -6,7 +6,7 @@
     <button
         class="c-button--menu"
         :class="currentView.cssClass"
-        title="Switch view type"
+        title="Change the current view"
         @click.stop="toggleViewMenu"
     >
         <span class="c-button__label">
@@ -47,7 +47,7 @@ export default {
     data() {
         return {
             showViewMenu: false
-        }
+        };
     },
     mounted() {
         document.addEventListener('click', this.hideViewMenu);
@@ -66,5 +66,5 @@ export default {
             this.showViewMenu = false;
         }
     }
-}
+};
 </script>

@@ -12,24 +12,7 @@
                :class="embed.cssClass"
                @click="changeLocation"
             >{{ embed.name }}</a>
-            <a class="c-ne__embed__context-available icon-arrow-down"
-               @click="toggleActionMenu"
-            ></a>
-        </div>
-        <div class="hide-menu hidden">
-            <div class="menu-element context-menu-wrapper mobile-disable-select">
-                <div class="c-menu">
-                    <ul>
-                        <li v-for="action in actions"
-                            :key="action.name"
-                            :class="action.cssClass"
-                            @click="action.perform(embed)"
-                        >
-                            {{ action.name }}
-                        </li>
-                    </ul>
-                </div>
-            </div>
+            <PopupMenu :popup-menu-items="popupMenuItems" />
         </div>
         <div v-if="embed.snapshot"
              class="c-ne__embed__time"
@@ -42,15 +25,17 @@
 
 <script>
 import Moment from 'moment';
+import PopupMenu from './popup-menu.vue';
 import PreviewAction from '../../../ui/preview/PreviewAction';
 import Painterro from 'painterro';
+import RemoveDialog from '../utils/removeDialog';
 import SnapshotTemplate from './snapshot-template.html';
-import { togglePopupMenu } from '../utils/popup-menu';
 import Vue from 'vue';
 
 export default {
     inject: ['openmct'],
     components: {
+        PopupMenu
     },
     props: {
         embed: {
@@ -62,23 +47,36 @@ export default {
         removeActionString: {
             type: String,
             default() {
-                return 'Remove Embed';
+                return 'Remove This Embed';
             }
         }
     },
     data() {
         return {
-            actions: [this.removeEmbedAction()],
-            agentService: this.openmct.$injector.get('agentService'),
-            popupService: this.openmct.$injector.get('popupService')
-        }
+            popupMenuItems: []
+        };
     },
     watch: {
     },
-    beforeMount() {
-        this.populateActionMenu();
+    mounted() {
+        this.addPopupMenuItems();
+        this.exportImageService = this.openmct.$injector.get('exportImageService');
     },
     methods: {
+        addPopupMenuItems() {
+            const removeEmbed = {
+                cssClass: 'icon-trash',
+                name: this.removeActionString,
+                callback: this.getRemoveDialog.bind(this)
+            };
+            const preview = {
+                cssClass: 'icon-eye-open',
+                name: 'Preview',
+                callback: this.previewEmbed.bind(this)
+            };
+
+            this.popupMenuItems = [removeEmbed, preview];
+        },
         annotateSnapshot() {
             const self = this;
 
@@ -165,27 +163,50 @@ export default {
             }).show(this.embed.snapshot.src);
         },
         changeLocation() {
-            this.openmct.time.stopClock();
-            this.openmct.time.bounds({
-                start: this.embed.bounds.start,
-                end: this.embed.bounds.end
-            });
-
             const link = this.embed.historicLink;
             if (!link) {
                 return;
             }
 
+            const bounds = this.openmct.time.bounds();
+            const isTimeBoundChanged = this.embed.bounds.start !== bounds.start
+                || this.embed.bounds.end !== bounds.end;
+            const isFixedTimespanMode = !this.openmct.time.clock();
+
+            this.openmct.time.stopClock();
+            let message = '';
+            if (isTimeBoundChanged) {
+                this.openmct.time.bounds({
+                    start: this.embed.bounds.start,
+                    end: this.embed.bounds.end
+                });
+                message = 'Time bound values changed';
+            }
+
+            if (!isFixedTimespanMode) {
+                message = 'Time bound values changed to fixed timespan mode';
+            }
+
+            if (message.length) {
+                this.openmct.notifications.alert(message);
+            }
+
             window.location.href = link;
-            const message = 'Time bounds changed to fixed timespan mode';
-            this.openmct.notifications.alert(message);
         },
         formatTime(unixTime, timeFormat) {
             return Moment.utc(unixTime).format(timeFormat);
         },
+        getRemoveDialog() {
+            const options = {
+                name: this.removeActionString,
+                callback: this.removeEmbed.bind(this)
+            };
+            const removeDialog = new RemoveDialog(this.openmct, options);
+            removeDialog.show();
+        },
         openSnapshot() {
             const self = this;
-            const snapshot = new Vue({
+            this.snapshot = new Vue({
                 data: () => {
                     return {
                         embed: self.embed
@@ -193,14 +214,17 @@ export default {
                 },
                 methods: {
                     formatTime: self.formatTime,
-                    annotateSnapshot: self.annotateSnapshot
+                    annotateSnapshot: self.annotateSnapshot,
+                    exportImage: self.exportImage
                 },
                 template: SnapshotTemplate
             });
 
             const snapshotOverlay = this.openmct.overlays.overlay({
-                element: snapshot.$mount().$el,
-                onDestroy: () => { snapshot.$destroy(true) },
+                element: this.snapshot.$mount().$el,
+                onDestroy: () => {
+                    this.snapshot.$destroy(true);
+                },
                 size: 'large',
                 dismissable: true,
                 buttons: [
@@ -214,59 +238,31 @@ export default {
                 ]
             });
         },
-        populateActionMenu() {
-            const self = this;
-            const actions = [new PreviewAction(self.openmct)];
-            self.openmct.objects.get(self.embed.type)
-                .then((domainObject) => {
-                    actions.forEach((action) => {
-                        self.actions.push({
-                            cssClass: action.cssClass,
-                            name: action.name,
-                            perform: () => {
-                                action.invoke([domainObject].concat(self.openmct.router.path));
-                            }
-                        });
-                    });
-                });
-        },
-        removeEmbed(id) {
-            this.$emit('removeEmbed', id);
-        },
-        removeEmbedAction() {
-            const self = this;
+        exportImage(type) {
+            let element = this.snapshot.$refs['snapshot-image'];
 
-            return {
-                name: self.removeActionString,
-                cssClass: 'icon-trash',
-                perform: function (embed) {
-                    const dialog = self.openmct.overlays.dialog({
-                        iconClass: "error",
-                        message: `This action will permanently ${self.removeActionString.toLowerCase()}. Do you wish to continue?`,
-                        buttons: [{
-                            label: "No",
-                            callback: function () {
-                                dialog.dismiss();
-                            }
-                        },
-                        {
-                            label: "Yes",
-                            emphasis: true,
-                            callback: function () {
-                                dialog.dismiss();
-                                self.removeEmbed(embed.id);
-                            }
-                        }]
-                    });
-                }
-            };
+            if (type === 'png') {
+                this.exportImageService.exportPNG(element, this.embed.name);
+            } else {
+                this.exportImageService.exportJPG(element, this.embed.name);
+            }
         },
-        toggleActionMenu(event) {
-            togglePopupMenu(event, this.openmct);
+        previewEmbed() {
+            const self = this;
+            const previewAction = new PreviewAction(self.openmct);
+            this.openmct.objects.get(self.embed.domainObject.identifier)
+                .then(domainObject => previewAction.invoke([domainObject]));
+        },
+        removeEmbed(success) {
+            if (!success) {
+                return;
+            }
+
+            this.$emit('removeEmbed', this.embed.id);
         },
         updateEmbed(embed) {
             this.$emit('updateEmbed', embed);
         }
     }
-}
+};
 </script>

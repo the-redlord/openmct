@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -24,6 +24,7 @@ define([
     'lodash',
     './utcTimeSystem/plugin',
     './localTimeSystem/plugin',
+    './ISOTimeFormat/plugin',
     '../../example/generator/plugin',
     './autoflow/AutoflowTabularPlugin',
     './timeConductor/plugin',
@@ -47,13 +48,21 @@ define([
     './goToOriginalAction/plugin',
     './clearData/plugin',
     './webPage/plugin',
+    './condition/plugin',
+    './conditionWidget/plugin',
     './themes/espresso',
     './themes/maelstrom',
-    './themes/snow'
+    './themes/snow',
+    './URLTimeSettingsSynchronizer/plugin',
+    './notificationIndicator/plugin',
+    './newFolderAction/plugin',
+    './persistence/couch/plugin',
+    './defaultRootName/plugin'
 ], function (
     _,
     UTCTimeSystem,
     LocalTimeSystem,
+    ISOTimeFormat,
     GeneratorPlugin,
     AutoflowPlugin,
     TimeConductorPlugin,
@@ -77,17 +86,24 @@ define([
     GoToOriginalAction,
     ClearData,
     WebPagePlugin,
+    ConditionPlugin,
+    ConditionWidgetPlugin,
     Espresso,
     Maelstrom,
-    Snow
+    Snow,
+    URLTimeSettingsSynchronizer,
+    NotificationIndicator,
+    NewFolderAction,
+    CouchDBPlugin,
+    DefaultRootName
 ) {
-    var bundleMap = {
+    const bundleMap = {
         LocalStorage: 'platform/persistence/local',
         MyItems: 'platform/features/my-items',
-        CouchDB: 'platform/persistence/couch'
+        Elasticsearch: 'platform/persistence/elastic'
     };
 
-    var plugins = _.mapValues(bundleMap, function (bundleName, pluginName) {
+    const plugins = _.mapValues(bundleMap, function (bundleName, pluginName) {
         return function pluginConstructor() {
             return function (openmct) {
                 openmct.legacyRegistry.enable(bundleName);
@@ -115,32 +131,12 @@ define([
 
     plugins.Conductor = TimeConductorPlugin.default;
 
-    plugins.CouchDB = function (url) {
-        return function (openmct) {
-            if (url) {
-                var bundleName = "config/couch";
-                openmct.legacyRegistry.register(bundleName, {
-                    "extensions": {
-                        "constants": [
-                            {
-                                "key": "COUCHDB_PATH",
-                                "value": url,
-                                "priority": "mandatory"
-                            }
-                        ]
-                    }
-                });
-                openmct.legacyRegistry.enable(bundleName);
-            }
-
-            openmct.legacyRegistry.enable(bundleMap.CouchDB);
-        };
-    };
+    plugins.CouchDB = CouchDBPlugin.default;
 
     plugins.Elasticsearch = function (url) {
         return function (openmct) {
             if (url) {
-                var bundleName = "config/elastic";
+                const bundleName = "config/elastic";
                 openmct.legacyRegistry.register(bundleName, {
                     "extensions": {
                         "constants": [
@@ -176,7 +172,7 @@ define([
     plugins.FolderView = FolderView;
     plugins.Tabs = Tabs;
     plugins.FlexibleLayout = FlexibleLayout;
-    plugins.LADTable = LADTable;
+    plugins.LADTable = LADTable.default;
     plugins.Filters = Filters;
     plugins.ObjectMigration = ObjectMigration.default;
     plugins.GoToOriginalAction = GoToOriginalAction.default;
@@ -185,6 +181,13 @@ define([
     plugins.Espresso = Espresso.default;
     plugins.Maelstrom = Maelstrom.default;
     plugins.Snow = Snow.default;
+    plugins.Condition = ConditionPlugin.default;
+    plugins.ConditionWidget = ConditionWidgetPlugin.default;
+    plugins.URLTimeSettingsSynchronizer = URLTimeSettingsSynchronizer.default;
+    plugins.NotificationIndicator = NotificationIndicator.default;
+    plugins.NewFolderAction = NewFolderAction.default;
+    plugins.ISOTimeFormat = ISOTimeFormat.default;
+    plugins.DefaultRootName = DefaultRootName.default;
 
     return plugins;
 });

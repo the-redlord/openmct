@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -28,8 +28,10 @@ define([
     }
 
     ConfigStore.prototype.deleteStore = function (id) {
-        this.store[id].destroy();
-        delete this.store[id];
+        if (this.store[id]) {
+            this.store[id].destroy();
+            delete this.store[id];
+        }
     };
 
     ConfigStore.prototype.add = function (id, config) {
@@ -40,7 +42,7 @@ define([
         return this.store[id];
     };
 
-    var STORE = new ConfigStore();
+    const STORE = new ConfigStore();
 
     return STORE;
 });

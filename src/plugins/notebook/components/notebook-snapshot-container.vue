@@ -2,32 +2,20 @@
 <div class="c-snapshots-h">
     <div class="l-browse-bar">
         <div class="l-browse-bar__start">
-            <div class="l-browse-bar__object-name--w icon-notebook">
-                <div class="l-browse-bar__object-name">
-                    Notebook Snapshots
-                    <span v-if="snapshots.length"
-                          class="l-browse-bar__object-details"
-                    >&nbsp;{{ snapshots.length }} of {{ getNotebookSnapshotMaxCount() }}
-                    </span>
-                </div>
-                <a class="l-browse-bar__context-actions c-disclosure-button"
-                   @click="toggleActionMenu"
-                ></a>
-                <div class="hide-menu hidden">
-                    <div class="menu-element context-menu-wrapper mobile-disable-select">
-                        <div class="c-menu">
-                            <ul>
-                                <li v-for="action in actions"
-                                    :key="action.name"
-                                    :class="action.cssClass"
-                                    @click="action.perform()"
-                                >
-                                    {{ action.name }}
-                                </li>
-                            </ul>
-                        </div>
+            <div class="l-browse-bar__object-name--w">
+                <div class="l-browse-bar__object-name c-object-label">
+                    <div class="c-object-label__type-icon icon-notebook"></div>
+                    <div class="c-object-label__name">
+                        Notebook Snapshots
+                        <span v-if="snapshots.length"
+                              class="l-browse-bar__object-details"
+                        >&nbsp;{{ snapshots.length }} of {{ getNotebookSnapshotMaxCount() }}
+                        </span>
                     </div>
                 </div>
+                <PopupMenu v-if="snapshots.length > 0"
+                           :popup-menu-items="popupMenuItems"
+                />
             </div>
 
         </div>
@@ -62,14 +50,16 @@
 
 <script>
 import NotebookEmbed from './notebook-embed.vue';
+import PopupMenu from './popup-menu.vue';
+import RemoveDialog from '../utils/removeDialog';
 import { NOTEBOOK_SNAPSHOT_MAX_COUNT } from '../snapshot-container';
 import { EVENT_SNAPSHOTS_UPDATED } from '../notebook-constants';
-import { togglePopupMenu } from '../utils/popup-menu';
 
 export default {
     inject: ['openmct', 'snapshotContainer'],
     components: {
-        NotebookEmbed
+        NotebookEmbed,
+        PopupMenu
     },
     props: {
         toggleSnapshot: {
@@ -81,54 +71,47 @@ export default {
     },
     data() {
         return {
-            actions: [this.removeAllSnapshotAction()],
+            popupMenuItems: [],
+            removeActionString: 'Delete all snapshots',
             snapshots: []
-        }
+        };
     },
     mounted() {
+        this.addPopupMenuItems();
         this.snapshotContainer.on(EVENT_SNAPSHOTS_UPDATED, this.snapshotsUpdated);
         this.snapshots = this.snapshotContainer.getSnapshots();
     },
     beforeDestory() {
     },
     methods: {
+        addPopupMenuItems() {
+            const removeSnapshot = {
+                cssClass: 'icon-trash',
+                name: this.removeActionString,
+                callback: this.getRemoveDialog.bind(this)
+            };
+
+            this.popupMenuItems = [removeSnapshot];
+        },
         close() {
             this.toggleSnapshot();
         },
         getNotebookSnapshotMaxCount() {
             return NOTEBOOK_SNAPSHOT_MAX_COUNT;
         },
-        removeAllSnapshotAction() {
-            const self = this;
-
-            return {
-                name: 'Delete All Snapshots',
-                cssClass: 'icon-trash',
-                perform: function (embed) {
-                    const dialog = self.openmct.overlays.dialog({
-                        iconClass: "error",
-                        message: 'This action will delete all notebook snapshots. Do you want to continue?',
-                        buttons: [
-                            {
-                                label: "No",
-                                callback: () => {
-                                    dialog.dismiss();
-                                }
-                            },
-                            {
-                                label: "Yes",
-                                emphasis: true,
-                                callback: () => {
-                                    self.removeAllSnapshots();
-                                    dialog.dismiss();
-                                }
-                            }
-                        ]
-                    });
-                }
+        getRemoveDialog() {
+            const options = {
+                name: this.removeActionString,
+                callback: this.removeAllSnapshots.bind(this)
             };
+            const removeDialog = new RemoveDialog(this.openmct, options);
+            removeDialog.show();
         },
-        removeAllSnapshots() {
+        removeAllSnapshots(success) {
+            if (!success) {
+                return;
+            }
+
             this.snapshotContainer.removeAllSnapshots();
         },
         removeSnapshot(id) {
@@ -141,12 +124,9 @@ export default {
             event.dataTransfer.setData('text/plain', snapshot.id);
             event.dataTransfer.setData('snapshot/id', snapshot.id);
         },
-        toggleActionMenu(event) {
-            togglePopupMenu(event, this.openmct);
-        },
         updateSnapshot(snapshot) {
             this.snapshotContainer.updateSnapshot(snapshot);
         }
     }
-}
+};
 </script>

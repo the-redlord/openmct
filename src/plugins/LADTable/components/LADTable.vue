@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -21,22 +21,26 @@
  *****************************************************************************/
 
 <template>
-<table class="c-table c-lad-table">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Timestamp</th>
-            <th>Value</th>
-        </tr>
-    </thead>
-    <tbody>
-        <lad-row
-            v-for="item in items"
-            :key="item.key"
-            :domain-object="item.domainObject"
-        />
-    </tbody>
-</table>
+<div class="c-lad-table-wrapper">
+    <table class="c-table c-lad-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Timestamp</th>
+                <th>Value</th>
+                <th v-if="hasUnits">Unit</th>
+            </tr>
+        </thead>
+        <tbody>
+            <lad-row
+                v-for="item in items"
+                :key="item.key"
+                :domain-object="item.domainObject"
+                :has-units="hasUnits"
+            />
+        </tbody>
+    </table>
+</div>
 </template>
 
 <script>
@@ -50,6 +54,18 @@ export default {
     data() {
         return {
             items: []
+        };
+    },
+    computed: {
+        hasUnits() {
+            let itemsWithUnits = this.items.filter((item) => {
+                let metadata = this.openmct.telemetry.getMetadata(item.domainObject);
+
+                return this.metadataHasUnits(metadata.valueMetadatas);
+
+            });
+
+            return itemsWithUnits.length !== 0;
         }
     },
     mounted() {
@@ -73,7 +89,7 @@ export default {
             this.items.push(item);
         },
         removeItem(identifier) {
-            let index = _.findIndex(this.items, (item) => this.openmct.objects.makeKeyString(identifier) === item.key);
+            let index = this.items.findIndex(item => this.openmct.objects.makeKeyString(identifier) === item.key);
 
             this.items.splice(index, 1);
         },
@@ -82,8 +98,12 @@ export default {
             reorderPlan.forEach((reorderEvent) => {
                 this.$set(this.items, reorderEvent.newIndex, oldItems[reorderEvent.oldIndex]);
             });
+        },
+        metadataHasUnits(valueMetadatas) {
+            let metadataWithUnits = valueMetadatas.filter(metadatum => metadatum.unit);
+
+            return metadataWithUnits.length > 0;
         }
     }
-}
+};
 </script>
-

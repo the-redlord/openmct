@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2018, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -57,13 +57,13 @@ button {
         line-height: 90%;
         padding: 3px 10px;
 
-        @include hover() {
-            background: $colorBtnBgHov;
-            color: $colorBtnFgHov;
-        }
-
         @include desktop() {
             font-size: 6px;
+        }
+
+        &:before {
+            content: $glyph-icon-arrow-down;
+            font-size: 1.1em;
         }
     }
 
@@ -81,9 +81,24 @@ button {
 /********* Icon Buttons and Links */
 .c-click-icon {
     @include cClickIcon();
+
+    &--section-collapse {
+        color: inherit;
+        display: block;
+        transition: transform $transOutTime;
+        &:before {
+            content: $glyph-icon-arrow-down;
+            font-family: symbolsfont;
+        }
+
+        &.is-collapsed {
+            transform: rotate(180deg);
+        }
+    }
 }
 
-.c-click-link {
+.c-click-link,
+.c-icon-link {
     // A clickable element, typically inline, with an icon and label
     @include cControl();
     cursor: pointer;
@@ -98,18 +113,20 @@ button {
     }
 }
 
+.c-icon-link {
+    &:before {
+        // Icon
+        //color: $colorBtnMajorBg;
+    }
+}
+
 .c-icon-button {
-    .c-icon-button__label {
+    &__label {
         margin-left: $interiorMargin;
     }
 
-    $c1: nth($mixedSettingBg, 1);
-    $c2: nth($mixedSettingBg, 2);
-    $mixedBgD: $mixedSettingBgSize $mixedSettingBgSize;
-
     &--mixed {
-        // E.g. click-icons in toolbar that apply to multiple selected items with different settings
-        @include bgStripes2Color($c1, $c2, $bgSize: $mixedBgD);
+        @include mixedBg();
     }
 
     &--swatched {
@@ -131,13 +148,6 @@ button {
             // Reduce size of icon to make a bit of room
             flex: 1 1 auto;
             font-size: 1.1em;
-        }
-
-        &--mixed {
-            // Styling for swatched buttons when settings are mixed
-            > [class*='swatch'] {
-                @include bgStripes2Color($c1, $c2, $bgSize: $mixedBgD);
-            }
         }
     }
 }
@@ -209,6 +219,41 @@ button {
         &:before {
             transform: rotate(90deg);
         }
+    }
+}
+
+/******************************************************** DRAG AFFORDANCES */
+.c-grippy {
+    $d: 10px;
+    @include grippy($c: $colorItemTreeVC, $dir: 'y');
+    width: $d; height: $d;
+
+    &--vertical-drag {
+        cursor: ns-resize;
+    }
+}
+
+/******************************************************** SECTION */
+section {
+    flex: 0 1 auto;
+    overflow: hidden;
+    + section {
+        margin-top: $interiorMargin;
+    }
+
+    .c-section__header {
+        @include propertiesHeader();
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        margin-bottom: $interiorMargin;
+
+        > * + * { margin-left: $interiorMarginSm; }
+    }
+
+    > [class*='__label'] {
+        flex: 1 1 auto;
+        text-transform: uppercase;
     }
 }
 
@@ -324,7 +369,7 @@ select {
     background-position: right .4em top 80%, 0 0;
     border: none;
     border-radius: $controlCr;
-    padding: 1px 20px 1px $interiorMargin;
+    padding: 2px 20px 2px $interiorMargin;
 
     *,
     option {
@@ -369,7 +414,17 @@ select {
 
 .c-tab {
     // Used in Tab View, generic tabs
-    background: $colorBtnBg;
+    $notchSize: 7px;
+    $clipPath:
+        polygon(
+            0% 0%,
+            calc(100% - #{$notchSize}) 0%,
+            100% #{$notchSize},
+            100% calc(100% - #{$notchSize}),
+            100% 100%,
+            0% 100%
+        );
+    background: rgba($colorBtnBg, 0.7);
     color: $colorBtnFg;
     cursor: pointer;
     display: flex;
@@ -378,21 +433,15 @@ select {
     margin: 1px 1px 0 0;
     padding: $interiorMargin $interiorMarginLg;
     white-space: nowrap;
+    clip-path: $clipPath;
+    -webkit-clip-path: $clipPath; // Safari
 
-    --notchSize: 7px;
-
-    clip-path:
-        polygon(
-            0% 0%,
-            calc(100% - var(--notchSize)) 0%,
-            100% var(--notchSize),
-            100% calc(100% - var(--notchSize)),
-            100% 100%,
-            0% 100%
-        );
+    > * + * {
+        margin-left: $interiorMargin;
+    }
 
     @include hover() {
-        background: $colorBtnBgHov;
+        filter: $filterHov;
     }
 
     &.is-current {
@@ -420,9 +469,17 @@ select {
     text-shadow: $shdwMenuText;
     padding: $interiorMarginSm;
     box-shadow: $shdwMenu;
-    display: block;
+    display: flex;
+    flex-direction: column;
     position: absolute;
     z-index: 100;
+
+    > * {
+        flex: 0 0 auto;
+        //+ * {
+        //    margin-top: $interiorMarginSm;
+        //}
+    }
 }
 
 @mixin menuInner() {
@@ -460,6 +517,23 @@ select {
 .c-menu {
     @include menuOuter();
     @include menuInner();
+
+    &__section-hint {
+        $m: $interiorMargin;
+        margin: $m 0;
+        padding: $m nth($menuItemPad, 2) 0 nth($menuItemPad, 2);
+
+        opacity: 0.6;
+        font-size: 0.9em;
+        font-style: italic;
+    }
+
+    &__section-separator {
+        $m: $interiorMargin;
+        border-top: 1px solid $colorInteriorBorder;
+        margin: $m 0;
+        padding: $m nth($menuItemPad, 2) 0 nth($menuItemPad, 2);
+    }
 }
 
 .c-super-menu {
@@ -521,6 +595,20 @@ select {
                 font-size: $fontBaseSize;
             }
         }
+    }
+}
+/******************************************************** CONTROL BARS */
+.c-control-bar {
+    display: flex;
+    align-items: center;
+
+    > * + * {
+        margin-left: $interiorMarginSm;
+    }
+
+    &__label {
+        display: inline-block;
+        white-space: nowrap;
     }
 }
 
@@ -645,6 +733,11 @@ select {
     height: 100%;
 }
 
+.c-row-separator {
+    border-top: 1px solid $colorInteriorBorder;
+    height: 1px;
+}
+
 .c-toolbar {
     > * + * {
         margin-left: 2px;
@@ -746,7 +839,29 @@ select {
     }
 }
 
-/***************************************************** SLIDERS */
+/******************************************************** STYLE EDITING */
+.c-style {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+
+    > * + * { margin-left: $interiorMargin; }
+}
+
+.c-style-thumb {
+    background-size: cover;
+    border: 1px solid transparent;
+    border-radius: $basicCr;
+    box-shadow: rgba($colorBodyFg, 0.4) 0 0 3px;
+    flex: 0 0 auto;
+    padding: $interiorMargin $interiorMarginLg;
+
+    &--mixed {
+        @include mixedBg();
+    }
+}
+
+/******************************************************** SLIDERS */
 .c-slider {
     @include cControl();
     > * + * { margin-left: $interiorMargin; }
@@ -807,14 +922,6 @@ input[type="range"] {
         // Horizontal layout be
         display: inline-flex;
         align-items: center;
-    }
-
-    &--overlay-content {
-        > .c-button {
-            background: $colorLocalControlOvrBg;
-            border-radius: $controlCr;
-            box-shadow: $colorLocalControlOvrBg 0 0 0 2px;
-        }
     }
 }
 

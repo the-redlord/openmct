@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Open MCT, Copyright (c) 2014-2017, United States Government
+ * Open MCT, Copyright (c) 2014-2020, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
  * Administration. All rights reserved.
  *
@@ -23,17 +23,28 @@
 /*global module,process*/
 
 const devMode = process.env.NODE_ENV !== 'production';
-const browsers = [process.env.NODE_ENV === 'debug' ? 'ChromeDebugging' : 'ChromeHeadless'];
+const browsers = [process.env.NODE_ENV === 'debug' ? 'ChromeDebugging' : 'FirefoxHeadless'];
+const coverageEnabled = process.env.COVERAGE === 'true';
+const reporters = ['progress', 'html'];
+
+if (coverageEnabled) {
+    reporters.push('coverage-istanbul');
+}
 
 module.exports = (config) => {
     const webpackConfig = require('./webpack.config.js');
     delete webpackConfig.output;
 
-    if (!devMode) {
+    if (!devMode || coverageEnabled) {
         webpackConfig.module.rules.push({
             test: /\.js$/,
-            exclude: /node_modules|example/,
-            use: 'istanbul-instrumenter-loader'
+            exclude: /node_modules|example|lib|dist/,
+            use: {
+                loader: 'istanbul-instrumenter-loader',
+                options: {
+                    esModules: true
+                }
+            }
         });
     }
 
@@ -41,16 +52,16 @@ module.exports = (config) => {
         basePath: '',
         frameworks: ['jasmine'],
         files: [
-            'platform/**/*Spec.js',
-            'src/**/*Spec.js'
+            'indexTest.js'
         ],
         port: 9876,
-        reporters: [
-            'progress',
-            'coverage',
-            'html'
-        ],
+        reporters: reporters,
         browsers: browsers,
+        client: {
+            jasmine: {
+                random: false
+            }
+        },
         customLaunchers: {
             ChromeDebugging: {
                 base: 'Chrome',
@@ -61,33 +72,34 @@ module.exports = (config) => {
         colors: true,
         logLevel: config.LOG_INFO,
         autoWatch: true,
-        coverageReporter: {
-            dir: process.env.CIRCLE_ARTIFACTS ?
-                process.env.CIRCLE_ARTIFACTS + '/coverage' :
-                "dist/reports/coverage",
-            check: {
-                global: {
-                    lines: 80,
-                    excludes: ['src/plugins/plot/**/*.js']
-                }
-            }
-        },
         // HTML test reporting.
         htmlReporter: {
             outputDir: "dist/reports/tests",
             preserveDescribeNesting: true,
             foldAll: false
         },
+        coverageIstanbulReporter: {
+            fixWebpackSourcePaths: true,
+            dir: process.env.CIRCLE_ARTIFACTS ?
+                process.env.CIRCLE_ARTIFACTS + '/coverage' :
+                "dist/reports/coverage",
+            reports: ['html', 'lcovonly', 'text-summary'],
+            thresholds: {
+                global: {
+                    lines: 64
+                }
+            }
+        },
         preprocessors: {
-            // add webpack as preprocessor
-            'platform/**/*Spec.js': [ 'webpack', 'sourcemap' ],
-            'src/**/*Spec.js': [ 'webpack', 'sourcemap' ]
+            'indexTest.js': ['webpack', 'sourcemap']
         },
         webpack: webpackConfig,
         webpackMiddleware: {
             stats: 'errors-only',
             logLevel: 'warn'
         },
-        singleRun: true
+        concurrency: 1,
+        singleRun: true,
+        browserNoActivityTimeout: 400000
     });
-}
+};

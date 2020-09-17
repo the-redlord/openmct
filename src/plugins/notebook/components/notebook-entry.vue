@@ -112,7 +112,7 @@ export default {
                 color: '#6e6e6e'
             },
             defaultText: 'add description'
-        }
+        };
     },
     watch: {
         entry() {
@@ -197,7 +197,7 @@ export default {
                 link: null,
                 objectPath,
                 openmct: this.openmct
-            }
+            };
             const newEmbed = createNewEmbed(snapshotMeta);
             const entries = getNotebookEntries(this.domainObject, this.selectedSection, this.selectedPage);
             const currentEntryEmbeds = entries[entryPos].embeds;
@@ -221,7 +221,7 @@ export default {
             return position;
         },
         formatTime(unixTime, timeFormat) {
-            return Moment(unixTime).format(timeFormat);
+            return Moment.utc(unixTime).format(timeFormat);
         },
         moveSnapshot(snapshotId) {
             const snapshot = this.snapshotContainer.getSnapshot(snapshotId);
@@ -249,7 +249,7 @@ export default {
         selectTextInsideElement(element) {
             const range = document.createRange();
             range.selectNodeContents(element);
-            var selection = window.getSelection();
+            let selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
         },
@@ -277,7 +277,7 @@ export default {
                 return;
             }
 
-            const target = $event.target
+            const target = $event.target;
             this.currentEntryValue = target ? target.innerText : '';
 
             if (!this.entry.text.length) {
@@ -312,5 +312,5 @@ export default {
             this.$emit('updateEntries', entries);
         }
     }
-}
+};
 </script>

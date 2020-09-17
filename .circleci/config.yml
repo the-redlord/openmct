@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-        - image: circleci/node:8-browsers
+        - image: circleci/node:13-browsers
           environment:
             CHROME_BIN: "/usr/bin/google-chrome"
     steps:
@@ -20,8 +20,8 @@ jobs:
             paths:
               - node_modules
         - run:
-            name: npm run test
-            command: npm run test
+            name: npm run test:coverage
+            command: npm run test:coverage
         - run:
             name: npm run lint
             command: npm run lint

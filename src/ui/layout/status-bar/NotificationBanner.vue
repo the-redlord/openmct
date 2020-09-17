@@ -1,5 +1,5 @@
 <!--
- Open MCT, Copyright (c) 2014-2018, United States Government
+ Open MCT, Copyright (c) 2014-2020, United States Government
  as represented by the Administrator of the National Aeronautics and Space
  Administration. All rights reserved.
  Open MCT is licensed under the Apache License, Version 2.0 (the
@@ -48,7 +48,7 @@ let maximizedDialog = undefined;
 let minimizeButton = {
     label: 'Dismiss',
     callback: dismissMaximizedDialog
-}
+};
 
 function dismissMaximizedDialog() {
     if (maximizedDialog) {
@@ -80,7 +80,7 @@ export default {
                 progressText: undefined,
                 minimized: undefined
             }
-        }
+        };
     },
     computed: {
         progressWidth() {
@@ -91,6 +91,7 @@ export default {
     },
     mounted() {
         this.openmct.notifications.on('notification', this.showNotification);
+        this.openmct.notifications.on('dismiss-all', this.clearModel);
     },
     methods: {
         showNotification(notification) {
@@ -99,6 +100,7 @@ export default {
                 activeNotification.off('minimized', this.minimized);
                 activeNotification.off('destroy', this.destroyActiveNotification);
             }
+
             activeNotification = notification;
             this.clearModel();
             this.applyModel(notification.model);
@@ -108,8 +110,8 @@ export default {
             activeNotification.on('minimized', this.minimized);
         },
         isEqual(modelA, modelB) {
-            return modelA.message === modelB.message &&
-                    modelA.timestamp === modelB.timestamp;
+            return modelA.message === modelB.message
+                    && modelA.timestamp === modelB.timestamp;
         },
         applyModel(model) {
             Object.keys(model).forEach((key) => this.activeModel[key] = model[key]);
@@ -158,10 +160,10 @@ export default {
                     iconClass: this.activeModel.severity,
                     buttons: [minimizeButton],
                     ...this.activeModel
-                })
+                });
             }
         }
     }
 
-}
+};
 </script>
